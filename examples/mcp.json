@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "signalframe": {
+      "command": "python",
+      "args": ["-m", "signalframe.mcp_server"],
+      "env": {}
+    }
+  }
+}

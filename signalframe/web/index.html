@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>signalframe</title>
+  <style>
+    :root {
+      --bg: #0b0f0c;
+      --ink: #e8f5e9;
+      --muted: #8aa894;
+      --line: #1f2a22;
+      --card: #121a14;
+      --accent: #39ff14;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--ink);
+      background:
+        radial-gradient(900px 420px at 85% 0%, rgba(57, 255, 20, 0.12), transparent 55%),
+        var(--bg);
+      font: 16px/1.5 "IBM Plex Sans", "Segoe UI", "PingFang SC", sans-serif;
+    }
+    main { max-width: 880px; margin: 0 auto; padding: 40px 20px 72px; }
+    header { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; }
+    h1 {
+      margin: 0;
+      font-family: "IBM Plex Mono", "Cascadia Code", monospace;
+      font-size: 42px;
+      letter-spacing: -0.03em;
+    }
+    h1 span { color: var(--accent); }
+    .lang {
+      border: 1px solid var(--accent);
+      color: var(--accent);
+      background: transparent;
+      padding: 6px 10px;
+      cursor: pointer;
+    }
+    .lead { color: var(--muted); max-width: 60ch; }
+    form { display: flex; flex-wrap: wrap; gap: 8px; margin: 20px 0; }
+    input[type="search"] {
+      flex: 1 1 240px;
+      background: var(--card);
+      border: 1px solid var(--line);
+      color: var(--ink);
+      padding: 12px 14px;
+      font: inherit;
+    }
+    button.primary {
+      background: var(--accent);
+      color: #041006;
+      border: none;
+      padding: 12px 18px;
+      font: inherit;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .meta { color: var(--muted); font-size: 14px; margin-bottom: 16px; }
+    .error { color: #ff8a80; font-size: 14px; }
+    article {
+      border: 1px solid var(--line);
+      background: var(--card);
+      padding: 14px 16px;
+      margin: 0 0 10px;
+    }
+    article h2 { margin: 0 0 6px; font-size: 17px; }
+    article p { margin: 0; color: var(--muted); font-size: 14px; }
+    .tag {
+      display: inline-block;
+      margin-bottom: 6px;
+      color: var(--accent);
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 12px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <h1>signal<span>frame</span></h1>
+      <button class="lang" id="lang" type="button">English</button>
+    </header>
+    <p class="lead" id="lead"></p>
+    <form id="form">
+      <input id="q" type="search" name="q">
+      <button class="primary" id="go" type="submit"></button>
+    </form>
+    <p class="meta" id="meta"></p>
+    <p class="error" id="error" hidden></p>
+    <div id="list"></div>
+  </main>
+  <script>
+    const I18N = {
+      zh: {
+        lead: "不读新闻，只读价格。输入关键词，并行拉取预测市场与宏观/加密信号。",
+        placeholder: "例如：bitcoin、recession、taiwan",
+        go: "探测",
+        empty: "没有信号。换一个更能被市场定价的词。",
+        lang: "English",
+        html: "zh"
+      },
+      en: {
+        lead: "Skip the newsfeed. Ask a keyword and fan out across priced-in market signals.",
+        placeholder: "Try: bitcoin, recession, taiwan",
+        go: "Probe",
+        empty: "No signals. Try a word markets actually price.",
+        lang: "中文",
+        html: "en"
+      }
+    };
+    const state = { lang: localStorage.getItem("signalframe-lang") || "zh" };
+    const t = (key) => I18N[state.lang][key];
+
+    function apply() {
+      const copy = I18N[state.lang];
+      document.documentElement.lang = copy.html;
+      document.getElementById("lead").textContent = copy.lead;
+      document.getElementById("q").placeholder = copy.placeholder;
+      document.getElementById("go").textContent = copy.go;
+      document.getElementById("lang").textContent = copy.lang;
+    }
+
+    function render(payload) {
+      const list = document.getElementById("list");
+      const error = document.getElementById("error");
+      list.innerHTML = "";
+      error.hidden = true;
+      document.getElementById("meta").textContent =
+        (payload.query || "(empty)") + " · " + payload.duration_ms + "ms · " + (payload.signals || []).length + " signals";
+      if (payload.errors && Object.keys(payload.errors).length) {
+        error.hidden = false;
+        error.textContent = JSON.stringify(payload.errors);
+      }
+      const signals = payload.signals || [];
+      if (!signals.length) {
+        const p = document.createElement("p");
+        p.className = "meta";
+        p.textContent = t("empty");
+        list.appendChild(p);
+        return;
+      }
+      signals.forEach((hit) => {
+        const card = document.createElement("article");
+        const tag = document.createElement("div");
+        tag.className = "tag";
+        tag.textContent = hit.source + (hit.probability == null ? "" : " · " + Math.round(hit.probability * 100) + "%");
+        const h = document.createElement("h2");
+        h.textContent = hit.title;
+        const p = document.createElement("p");
+        p.textContent = hit.summary;
+        card.append(tag, h, p);
+        list.appendChild(card);
+      });
+    }
+
+    async function run(query) {
+      const response = await fetch("/api/probe?" + new URLSearchParams({ q: query || "", limit: "5" }));
+      const payload = await response.json();
+      render(payload);
+    }
+
+    document.getElementById("lang").addEventListener("click", () => {
+      state.lang = state.lang === "zh" ? "en" : "zh";
+      localStorage.setItem("signalframe-lang", state.lang);
+      apply();
+    });
+    document.getElementById("form").addEventListener("submit", (event) => {
+      event.preventDefault();
+      run(document.getElementById("q").value);
+    });
+    apply();
+    run("bitcoin");
+  </script>
+</body>
+</html>

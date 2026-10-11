@@ -1,5 +1,8 @@
 __pycache__/
 *.py[cod]
+*.egg-info/
+dist/
+build/
 tmp_*.py
 .claude/
 .deps/

@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "signalframe"
+version = "0.1.0"
+description = "Bilingual market-signal probe: fork of digital-oracle with registry fan-out, MCP, and a local web UI."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "WILLIAMsykvg" }]
+dependencies = [
+  "mcp>=1.9.0",
+  "fastapi>=0.115.0",
+  "uvicorn>=0.32.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/WILLIAMsykvg/signalframe"
+Repository = "https://github.com/WILLIAMsykvg/signalframe"
+Upstream = "https://github.com/komako-workshop/digital-oracle"
+
+[project.scripts]
+signalframe = "signalframe.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["signalframe*", "digital_oracle*"]
+
+[tool.setuptools.package-data]
+signalframe = ["web/*.html"]
